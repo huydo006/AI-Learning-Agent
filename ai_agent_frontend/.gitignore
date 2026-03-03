@@ -1,0 +1,17 @@
+# Thư viện (Cấm push cái này!)
+node_modules/
+dist/
+build/
+
+# Biến môi trường
+.env
+.env.local
+
+# File rác hệ thống
+.DS_Store
+Thumbs.db
+
+# Cấu hình IDE
+.vscode/
+.idea/
+*.log
