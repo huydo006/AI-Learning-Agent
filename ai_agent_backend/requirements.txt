@@ -1,0 +1,19 @@
+# --- Core Backend ---
+fastapi          # Framework chính cho Backend
+uvicorn          # Server để chạy FastAPI
+python-multipart # Bắt buộc phải có để xử lý chức năng Upload file tài liệu
+pydantic         # Ràng buộc và xác thực dữ liệu
+python-dotenv    # Đọc file .env chứa API Key
+
+# --- Content Agent (Xử lý & Hiểu tài liệu) ---
+pymupdf          # Trích xuất text từ PDF siêu tốc (đã chốt thay cho các thư viện phức tạp)
+langchain        # Framework hỗ trợ nối RAG và Agents cực mượt
+sentence-transformers # Dùng cho Sentence-BERT (local embedding)
+chromadb         # Vector Database lưu trữ dữ liệu dạng vector
+
+# --- AI & LLM (Assessment Agent) ---
+google-generativeai # Dùng gọi Gemini API sinh câu hỏi (nhanh, rẻ, dễ xài)
+langchain-google-genai # Tích hợp Gemini vào luồng LangChain
+
+# --- Learner Profiling Agent (Phân loại năng lực) ---
+scikit-learn     # Thư viện Machine Learning cho Logistic Regression / Decision Tree

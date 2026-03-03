@@ -1,0 +1,9 @@
+# Bỏ qua môi trường ảo
+venv/
+__pycache__/
+
+# Bỏ qua file chứa API Key
+.env
+
+# Bỏ qua file tải lên tạm thời
+uploads/
