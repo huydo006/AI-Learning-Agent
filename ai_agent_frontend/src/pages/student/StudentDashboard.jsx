@@ -1,53 +1,48 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom"; 
+import { useQuery, useQueryClient } from "@tanstack/react-query"; //
 import documentApi from "../../api/documentApi";
-
-// Tạm hardcode user để test luồng DB
-const CURRENT_USER = "hs01"; 
 
 export default function StudentDashboard() {
   const navigate = useNavigate(); 
+  const queryClient = useQueryClient(); // Công cụ để ra lệnh làm mới dữ liệu toàn hệ thống
 
-  const [lessons, setLessons] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [courseLevels, setCourseLevels] = useState({});
+  // Lấy thông tin user từ localStorage để không bị đứng hình ở 'hs01'
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const CURRENT_USER = user.username || "hs01"; 
 
-  // States cho Modal làm bài test
+  // --- QUẢN LÝ DỮ LIỆU BẰNG REACT QUERY ---
+  
+  const { data: profile } = useQuery({
+    queryKey: ['userProfile', CURRENT_USER],
+    queryFn: () => documentApi.getProfile(CURRENT_USER).then(res => res.data || res),
+    refetchInterval: 10000, // Tự động cập nhật mỗi 10 giây
+  });
+  // 1. Lấy danh sách môn học
+  const { data: lessons = [], isLoading: loadingDocs } = useQuery({
+    queryKey: ['studentDocuments'],
+    queryFn: () => documentApi.getDocuments().then(res => res.data || res)
+  });
+
+  // 2. Lấy hạng thành viên của từng môn (Đồng bộ liên tục mỗi 10s)
+  const { data: courseLevels = {}, isLoading: loadingLevels } = useQuery({
+    queryKey: ['courseLevels', CURRENT_USER],
+    queryFn: () => documentApi.getProgress(CURRENT_USER).then(res => res.data || res),
+    refetchInterval: 50000, 
+    refetchOnWindowFocus: true
+  });
+
+  // States quản lý Modal và Quiz (Giữ nguyên logic UI của cậu)
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [testCourse, setTestCourse] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false); 
   const [quizData, setQuizData] = useState([]); 
   const [answers, setAnswers] = useState({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
 
-  // Tách biệt API để tránh lỗi đồng loạt khi Progress bị 404
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // 1. Lấy danh sách môn học
-        const docsData = await documentApi.getDocuments();
-        setLessons(docsData.data || docsData);
-
-        // 2. Lấy hạng thành viên (Nếu 404 thì bỏ qua, hiện mặc định)
-        try {
-          const progressData = await documentApi.getProgress(CURRENT_USER);
-          setCourseLevels(progressData.data || progressData); 
-        } catch (err) {
-          console.warn("Chưa có dữ liệu tiến độ cho user này.");
-        }
-      } catch (error) {
-        console.error("Lỗi nghiêm trọng khi tải dữ liệu môn học:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
+  // Grouping logic
   const groupedCourses = lessons.reduce((acc, lesson) => {
     const courseName = (lesson.course_name || "Môn học khác").trim();
     if (!acc[courseName]) acc[courseName] = [];
@@ -61,7 +56,6 @@ export default function StudentDashboard() {
       setTestCourse(courseName);
       setIsTestModalOpen(true); 
       setIsGenerating(true); 
-      
       try {
         const response = await documentApi.generateDiagnosticTest(courseName);
         setQuizData(response.data); 
@@ -95,18 +89,12 @@ export default function StudentDashboard() {
   const handleSubmitTest = () => {
     const unansweredCount = quizData.filter(q => !answers[q.id]).length;
     setShowErrors(true); 
-
     if (unansweredCount > 0) {
       if (!window.confirm(`⚠️ Bạn còn ${unansweredCount} câu chưa làm.`)) return; 
     }
-
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSubmitted(true); 
-      const correctCount = quizData.filter(q => answers[q.id] === q.correctAnswer).length;
-      alert(`✅ Đã nộp bài thành công! Đúng: ${correctCount} / ${quizData.length}.`);
-    }, 1000);
+    setIsSubmitted(true); 
+    const correctCount = quizData.filter(q => answers[q.id] === q.correctAnswer).length;
+    alert(`✅ Đã nộp bài thành công! Đúng: ${correctCount} / ${quizData.length}.`);
   };
 
   const handleCloseAndSave = async () => {
@@ -117,8 +105,11 @@ export default function StudentDashboard() {
     try {
       const response = await documentApi.saveProgress(CURRENT_USER, testCourse, correctCount, totalQ);
       const aiCalculatedLevel = response?.data?.level || response?.level; 
-      if (!aiCalculatedLevel) throw new Error("Không trích xuất được level");
-      setCourseLevels(prev => ({ ...prev, [testCourse]: aiCalculatedLevel }));
+      
+      // ĐỒNG BỘ TẠI ĐÂY: Ra lệnh làm mới toàn bộ trình độ học sinh
+      queryClient.invalidateQueries(['courseLevels', CURRENT_USER]);
+      queryClient.invalidateQueries(['userProfile', CURRENT_USER]); // Làm mới Header góc phải
+      
       alert(`🎉 Đã đánh giá xong! Mức độ: ${aiCalculatedLevel}`);
     } catch (error) {
       console.error("Lỗi Profiling Agent:", error);
@@ -126,18 +117,19 @@ export default function StudentDashboard() {
   };
 
   const currentQ = quizData[currentQuestionIndex];
+  const isLoading = loadingDocs || loadingLevels;
 
   return (
+    
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 min-h-[500px] relative">
       
-      {/* HEADER ĐÃ LƯỢC BỎ THANH TAB */}
       <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center">
           🚀 Khóa học của bạn
         </h2>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="text-center text-gray-400 py-20 animate-pulse font-medium">Đang đồng bộ dữ liệu hệ thống...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fadeIn">
@@ -151,7 +143,9 @@ export default function StudentDashboard() {
                       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                     </div>
                     {level ? (
-                      <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200 uppercase">Hạng: {level}</span>
+                      <span className={`px-3 py-1 text-xs font-black rounded-full border uppercase ${
+                        level === 'Advanced' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-green-100 text-green-700 border-green-200'
+                      }`}>Hạng: {level}</span>
                     ) : (
                       <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full border border-orange-200 uppercase tracking-tighter">Mới đăng ký</span>
                     )}
@@ -170,15 +164,10 @@ export default function StudentDashboard() {
               </div>
             );
           })}
-          {Object.keys(groupedCourses).length === 0 && (
-            <div className="col-span-full py-20 text-center border-2 border-dashed border-gray-200 rounded-3xl text-gray-400 italic">
-              Hiện chưa có tài liệu nào. Vui lòng nhờ giáo viên upload PDF nhé!
-            </div>
-          )}
         </div>
       )}
 
-      {/* --- MODAL LÀM BÀI TEST CHẨN ĐOÁN --- */}
+      {/* --- MODAL LÀM BÀI TEST --- */}
       {isTestModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-zoomIn">

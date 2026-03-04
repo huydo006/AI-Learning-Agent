@@ -9,7 +9,8 @@ import DocumentMgr from "./pages/teacher/DocumentMgr";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import LessonDetail from './pages/student/LessonDetail';
 import LearningHistory from './pages/student/LearningHistory'; 
-
+import TeacherDashboard from "./pages/teacher/TeacherDashboard";
+import StudentsList from "./pages/teacher/StudentsList";
 export default function App() {
   const [user, setUser] = useState(null);
 
@@ -36,9 +37,14 @@ export default function App() {
 
         {/* CỤM ROUTE GIÁO VIÊN */}
         <Route path="/teacher" element={<TeacherLayout user={user} logout={logout} />}>
-            <Route index element={<div className="p-10 text-xl font-bold">Chào mừng tới Dashboard Giáo viên!</div>} />
+           <Route index element={<TeacherDashboard />} />
             <Route path="documents" element={<DocumentMgr />} />
+            <Route path="students" element={<StudentsList />} /> 
         </Route>
+       
+
+        
+        
 
         {/* CỤM ROUTE HỌC SINH */}
         <Route path="/student" element={<StudentLayout user={user} logout={logout} />}>

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+// CHỖ THAY ĐỔI: Sử dụng documentApi thay vì gọi trực tiếp axiosClient
+import documentApi from "../../api/documentApi"; 
 
 export default function Login({ setUser }) {
   const [username, setUsername] = useState("");
@@ -7,34 +9,46 @@ export default function Login({ setUser }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // MÔ PHỎNG LOGIC ĐĂNG NHẬP (Sau này sẽ gọi axiosClient.post('/auth/login'))
-    setTimeout(() => {
-      if (username === "gv01" && password === "123456") {
-        const userData = { username: "gv01", full_name: "Nguyễn Văn Giảng Viên", role: "teacher" };
+    try {
+      // CHỖ THAY ĐỔI: Gọi hàm login từ documentApi (đã đồng bộ JSON Body)
+      const response = await documentApi.login({ 
+        username: username.trim(), 
+        password: password 
+      });
+
+      // Lấy dữ liệu an toàn từ response
+      const result = response.data || response;
+
+      if (result && result.status === "success") {
+        const userData = result.user;
+        
         setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData)); // Lưu lại để F5 không mất login
-        navigate("/teacher");
-      } else if (username === "hs01" && password === "123456") {
-        const userData = { username: "hs01", full_name: "Trần Thị Học Sinh", role: "student" };
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
-        navigate("/student");
-      } else {
-        alert("Sai tài khoản hoặc mật khẩu! (Thử gv01/123456 hoặc hs01/123456)");
+        localStorage.setItem("user", JSON.stringify(userData)); 
+
+        if (userData.role === "teacher") {
+          navigate("/teacher");
+        } else {
+          navigate("/student");
+        }
       }
+    } catch (error) {
+      // Hiển thị lỗi từ Backend (Ví dụ: "Mật khẩu không chính xác")
+      const errorMsg = error.response?.data?.detail || "Đăng nhập thất bại, vui lòng thử lại!";
+      alert(errorMsg);
+      console.error("Login Error:", error);
+    } finally {
       setLoading(false);
-    }, 800); // Tạo hiệu ứng loading cho chuyên nghiệp
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
         
-        {/* Header của Form */}
         <div className="bg-white p-8 pb-4 text-center">
           <div className="inline-block p-3 bg-blue-100 rounded-full mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -45,7 +59,6 @@ export default function Login({ setUser }) {
           <p className="text-gray-500 text-sm mt-1">Hệ thống học tập cá nhân hóa thông minh</p>
         </div>
 
-        {/* Form Đăng nhập */}
         <form onSubmit={handleLogin} className="p-8 pt-4 space-y-5">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Tên đăng nhập</label>
@@ -86,7 +99,6 @@ export default function Login({ setUser }) {
           </div>
         </form>
 
-        {/* Footer của Form */}
         <div className="bg-gray-50 p-4 text-center border-t border-gray-100">
           <p className="text-xs text-gray-400">© 2026 Dự án AI Agent MAS - Multi-Agent System</p>
         </div>

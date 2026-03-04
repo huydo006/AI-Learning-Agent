@@ -17,3 +17,6 @@ langchain-google-genai # Tích hợp Gemini vào luồng LangChain
 
 # --- Learner Profiling Agent (Phân loại năng lực) ---
 scikit-learn     # Thư viện Machine Learning cho Logistic Regression / Decision Tree
+pypdf2
+sqlalchemy
+psycopg2
