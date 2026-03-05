@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef } from "react"; // Thêm useRef
+import { useEffect, useState, useRef } from "react"; 
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import documentApi from "../../api/documentApi";
 
-// Tạm hardcode user để test, sau này lấy từ Auth context
+
 const CURRENT_USER = "hs01"; 
 
 export default function LessonDetail() {

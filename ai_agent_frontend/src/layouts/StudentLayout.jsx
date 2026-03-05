@@ -10,7 +10,7 @@ export default function StudentLayout({ user, logout }) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* TOP NAVIGATION BAR */}
+     
       <nav className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center space-x-10">
           <div className="text-xl font-bold text-green-600 flex items-center">
@@ -48,7 +48,7 @@ export default function StudentLayout({ user, logout }) {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8">
-        {/* Breadcrumb nhẹ cho học sinh biết mình đang ở đâu */}
+      
         <div className="mb-6 flex items-center text-xs text-gray-400 space-x-2">
             <span>Trang chủ</span>
             <span>/</span>

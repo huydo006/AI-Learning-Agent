@@ -12,9 +12,7 @@ const axiosClient = axios.create({
 // THÊM INTERCEPTOR CHO REQUEST (Trước khi gửi đi)
 axiosClient.interceptors.request.use(
     (config) => {
-        // Nếu sau này cậu dùng Token thực tế, mở comment 2 dòng dưới ra:
-        // const token = localStorage.getItem('access_token');
-        // if (token) config.headers.Authorization = `Bearer ${token}`;
+       
         
         return config;
     },
@@ -23,10 +21,10 @@ axiosClient.interceptors.request.use(
     }
 );
 
-// THÊM INTERCEPTOR CHO RESPONSE (Sau khi nhận kết quả về)
+
 axiosClient.interceptors.response.use(
     (response) => {
-        // Chỉ lấy đúng cái cục data trả về, bỏ qua mấy thông số lằng nhằng của HTTP
+     
         if (response && response.data) {
             return response.data;
         }

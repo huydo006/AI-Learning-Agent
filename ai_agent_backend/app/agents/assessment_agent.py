@@ -10,9 +10,9 @@ class AssessmentAgent:
     def __init__(self):
         # Khởi tạo kết nối với Gemini phiên bản mới nhất
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        # Sử dụng model Gemini 2.5 Flash vì nó nhanh và cực kỳ thông minh trong việc xử lý JSON
+        
         self.model_id = "gemini-2.5-flash"
-    # ---> THÊM HÀM MỚI NÀY VÀO TRONG CLASS AssessmentAgent <---
+
     def generate_lesson_quiz(self, theory_content: str, level: str) -> list:
         """
         Assessment Agent: Nhận lý thuyết đã được cá nhân hóa từ Adaptive Agent,

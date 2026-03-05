@@ -8,7 +8,7 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Thiết lập mặc định: dữ liệu sẽ không bị coi là "cũ" ngay lập tức
+     
       staleTime: 1000 * 60 * 5, // 5 phút
     },
   },

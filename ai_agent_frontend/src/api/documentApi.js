@@ -104,8 +104,8 @@ const documentApi = {
         return axiosClient.post('/api/v1/submit-quiz', formData);
     },
 
-    // ✅ ĐỔI TÊN THÀNH getHistory: Để khớp với giao diện LearningHistory.jsx
-    getHistory: (username) => {
+   
+    getLearningHistory: (username) => {
         return axiosClient.get(`/api/v1/history/${username}`);
     }
 };

@@ -5,13 +5,13 @@ import documentApi from "../../api/documentApi";
 
 export default function StudentDashboard() {
   const navigate = useNavigate(); 
-  const queryClient = useQueryClient(); // Công cụ để ra lệnh làm mới dữ liệu toàn hệ thống
+  const queryClient = useQueryClient(); 
 
-  // Lấy thông tin user từ localStorage để không bị đứng hình ở 'hs01'
+  
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const CURRENT_USER = user.username || "hs01"; 
 
-  // --- QUẢN LÝ DỮ LIỆU BẰNG REACT QUERY ---
+
   
   const { data: profile } = useQuery({
     queryKey: ['userProfile', CURRENT_USER],
@@ -32,7 +32,7 @@ export default function StudentDashboard() {
     refetchOnWindowFocus: true
   });
 
-  // States quản lý Modal và Quiz (Giữ nguyên logic UI của cậu)
+
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [testCourse, setTestCourse] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false); 
@@ -108,8 +108,7 @@ export default function StudentDashboard() {
       
       // ĐỒNG BỘ TẠI ĐÂY: Ra lệnh làm mới toàn bộ trình độ học sinh
       queryClient.invalidateQueries(['courseLevels', CURRENT_USER]);
-      queryClient.invalidateQueries(['userProfile', CURRENT_USER]); // Làm mới Header góc phải
-      
+      queryClient.invalidateQueries(['userProfile', CURRENT_USER]);
       alert(`🎉 Đã đánh giá xong! Mức độ: ${aiCalculatedLevel}`);
     } catch (error) {
       console.error("Lỗi Profiling Agent:", error);

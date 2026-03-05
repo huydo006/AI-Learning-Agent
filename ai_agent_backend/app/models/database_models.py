@@ -38,7 +38,7 @@ class StudentProgress(Base):
     __tablename__ = "student_progress"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, index=True) # Tạm dùng username (VD: hs01) để xác định học sinh
+    username = Column(String, index=True) 
     course_name = Column(String, index=True) # Tên môn học
     level = Column(String) # Hạng: Beginner, Intermediate, Advanced
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), default=func.now())

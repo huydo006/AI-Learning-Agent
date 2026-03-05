@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // Sử dụng useState để mở/đóng Terminal
+import React, { useState } from 'react'; 
 
 export default function TeacherDashboard() {
   // --- Quản lý trạng thái đóng/mở Terminal ---
