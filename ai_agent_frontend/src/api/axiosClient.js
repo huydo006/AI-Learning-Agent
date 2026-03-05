@@ -3,7 +3,7 @@ import axios from 'axios';
 // Khởi tạo một instance của axios với các cấu hình mặc định
 const axiosClient = axios.create({
     // Trỏ thẳng vào port 8000 của FastAPI Backend
-    baseURL: import.meta.env.VITE_API_URL, 
+    baseURL: 'http://127.0.0.1:8000', 
     headers: {
         'Content-Type': 'application/json',
     },
