@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react'; // Sử dụng useState để mở/đóng Terminal
 
 export default function TeacherDashboard() {
-  // Danh sách 5 Agent cốt lõi của hệ thống MAS đã được tối ưu mô tả
+  // --- Quản lý trạng thái đóng/mở Terminal ---
+  const [activeLog, setActiveLog] = useState(null);
+
   const agents = [
     { 
       name: "Content Agent", 
@@ -27,7 +29,7 @@ export default function TeacherDashboard() {
     { 
       name: "Adaptive Agent", 
       status: "Idle", 
-      task: "Cá nhân hóa bài giảng", 
+      task: "Cá cá nhân hóa bài giảng", 
       icon: "⚙️",
       desc: "Đóng vai trò gia sư riêng, thay đổi cách giải thích lý thuyết và ví dụ minh họa sao cho dễ hiểu nhất với năng lực từng người."
     },
@@ -41,7 +43,7 @@ export default function TeacherDashboard() {
   ];
 
   return (
-    <div className="p-8 bg-gray-50/50 min-h-screen">
+    <div className="p-8 bg-gray-50/50 min-h-screen relative">
       <div className="mb-8">
         <h1 className="text-3xl font-black text-gray-800 tracking-tighter">📊 HỆ THỐNG CÁC AI AGENT</h1>
         <p className="text-gray-500 mt-2 font-medium">Trạng thái vận hành của các tác tử AI trong thời gian thực.</p>
@@ -65,26 +67,83 @@ export default function TeacherDashboard() {
             </div>
 
             <h3 className="text-xl font-black text-gray-800 mb-1 uppercase tracking-tight">{agent.name}</h3>
-            <div className="text-[10px] font-black text-blue-600 mb-4 bg-blue-50 px-3 py-1 rounded-lg inline-block uppercase tracking-wider">
+            <div className="text-[10px] font-black text-blue-600 mb-2 bg-blue-50 px-3 py-1 rounded-lg inline-block uppercase tracking-wider">
               {agent.task}
             </div>
             
-            <p className="text-sm text-gray-500 leading-relaxed font-medium min-h-[60px]">
-              "{agent.desc}"
-            </p>
+            {/* PHẦN MÔ TẢ ĐÃ ĐƯỢC LƯỢC BỎ TẠI ĐÂY ĐỂ CHỈ XUẤT HIỆN TRONG TERMINAL */}
 
-            <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center">
+            <div className="mt-6 pt-6 border-t border-gray-50 flex justify-between items-center">
               <div className="flex flex-col">
                 <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Uptime</span>
                 <span className="text-xs font-black text-gray-800">99.9%</span>
               </div>
-              <button className="text-xs font-black text-blue-500 hover:text-blue-700 transition-colors bg-blue-50/50 px-4 py-2 rounded-xl">
+              <button 
+                onClick={() => setActiveLog(agent)}
+                className="text-xs font-black text-blue-500 hover:text-blue-700 transition-colors bg-blue-50/50 px-4 py-2 rounded-xl"
+              >
                 Xem Log →
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* --- ✨ TERMINAL MODAL HIỂN THỊ CHI TIẾT --- */}
+      {activeLog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-gray-900 rounded-[2.5rem] w-full max-w-lg p-10 shadow-2xl border border-white/10 relative">
+            
+            <button 
+              onClick={() => setActiveLog(null)} 
+              className="absolute top-8 right-10 text-gray-500 hover:text-white text-2xl transition-colors p-2"
+            >
+              ✕
+            </button>
+            
+            <div className="flex items-center space-x-4 mb-8">
+              <span className="text-4xl">{activeLog.icon}</span>
+              <div>
+                <h2 className="text-white text-xl font-black uppercase tracking-tighter italic">Agent Terminal</h2>
+                <div className="text-[10px] text-green-500 font-bold uppercase tracking-[0.2em]">Secure Connection Established</div>
+              </div>
+            </div>
+
+            <div className="bg-black/40 rounded-3xl p-8 font-mono text-[12px] leading-relaxed border border-white/5">
+              <div className="text-blue-400 mb-2 font-bold uppercase tracking-widest underline underline-offset-4">
+                Thông tin định danh:
+              </div>
+              <div className="text-gray-300 space-y-1">
+                <p><span className="text-gray-500 italic"># Agent_Name:</span> {activeLog.name}</p>
+                <p><span className="text-gray-500 italic"># Current_Task:</span> {activeLog.task}</p>
+                <p><span className="text-gray-500 italic"># Network_Status:</span> {activeLog.status}</p>
+              </div>
+
+              <div className="text-blue-400 mt-6 mb-2 font-bold uppercase tracking-widest underline underline-offset-4">
+                Mô tả nghiệp vụ:
+              </div>
+              {/* GIỚI THIỆU CHỨC NĂNG XUẤT HIỆN TẠI ĐÂY */}
+              <p className="text-green-400/90 leading-6 italic">
+                "{activeLog.desc}"
+              </p>
+
+              <div className="mt-8 pt-4 border-t border-white/5 flex items-center space-x-2">
+                <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span className="text-[10px] text-gray-600 font-bold uppercase">System Listening...</span>
+              </div>
+            </div>
+
+            <div className="mt-8 text-center">
+              <button 
+                onClick={() => setActiveLog(null)}
+                className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] hover:text-white transition-colors"
+              >
+                [ Nhấn ✕ hoặc đây để thoát ]
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
