@@ -5,7 +5,7 @@ const axiosClient = axios.create({
     // Trỏ thẳng vào port 8000 của FastAPI Backend
     baseURL: 'http://127.0.0.1:8000', 
     headers: {
-        'Content-Type': 'multipart/form-data',
+        //'Content-Type': 'multipart/form-data',
     },
 });
 

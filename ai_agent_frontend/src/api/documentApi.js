@@ -71,10 +71,14 @@ const documentApi = {
     },
 
     generateLesson: (docId, level) => {
-        const formData = new FormData();
-        formData.append('level', level); 
-        return axiosClient.post(`/api/v1/generate-lesson/${docId}`, formData);
-    },
+    const formData = new FormData();
+    formData.append('level', level);
+    
+    return axiosClient.post(`/api/v1/generate-lesson/${docId}`, formData, {
+       
+        headers: { 'Content-Type': 'multipart/form-data' } 
+    });
+},
 
     // ==========================================
     // KHU VỰC 3: API LƯU TRỮ TIẾN ĐỘ & LỊCH SỬ
