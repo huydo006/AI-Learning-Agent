@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel 
 
-# Import Database & Models
+# Import Database & Models - Bao gồm đầy đủ các bảng cần thiết
 from app.core.database import get_db
-from app.models.database_models import Document, StudentProgress, LessonProgress, User 
+from app.models.database_models import Document, StudentProgress, LessonProgress, User, LearningHistory 
 
 # Import dàn đệ tử AI (Agents)
 from app.agents.content_agent import content_agent
@@ -17,7 +17,6 @@ from app.agents.profiling_agent import profiling_agent
 from app.agents.assessment_agent import assessment_agent
 from app.agents.evaluation_agent import evaluation_agent
 from app.agents.adaptive_agent import adaptive_agent
-from app.models.schemas import EvaluationInput
 
 logger = logging.getLogger("AI_MAS_System.Routes")
 router = APIRouter()
@@ -25,7 +24,7 @@ router = APIRouter()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# --- ✨ SCHEMAS ĐỂ ĐỒNG BỘ DỮ LIỆU JSON (FIX LỖI 422) ---
+# --- ✨ SCHEMAS ĐỂ ĐỒNG BỘ DỮ LIỆU JSON ---
 class UserSchema(BaseModel):
     full_name: str
     username: str
@@ -40,21 +39,15 @@ class LoginSchema(BaseModel):
 # KHU VỰC 0: AUTHENTICATION & QUẢN TRỊ USER
 # ==========================================
 
-# ✅ SỬA LỖI 422 & LOGIN: Chuyển sang nhận JSON Body
 @router.post("/auth/login", summary="API Đăng nhập thực tế")
-async def login(
-    login_data: LoginSchema, 
-    db: Session = Depends(get_db)
-):
-    # Tìm user không phân biệt hoa thường
+async def login(login_data: LoginSchema, db: Session = Depends(get_db)):
     user = db.query(User).filter(
         func.lower(User.username) == func.lower(login_data.username.strip())
     ).first()
     
     if not user:
-        raise HTTPException(status_code=404, detail="Tài khoản không tồn tại trên hệ thống!")
+        raise HTTPException(status_code=404, detail="Tài khoản không tồn tại!")
     
-    # Kiểm tra mật khẩu trực tiếp (theo yêu cầu quản trị của cậu)
     if user.password != login_data.password:
         raise HTTPException(status_code=401, detail="Mật khẩu không chính xác!")
         
@@ -68,12 +61,8 @@ async def login(
         }
     }
 
-# ✅ TẠO TÀI KHOẢN MỚI (Dùng JSON)
-@router.post("/auth/register", summary="Giáo viên tạo tài khoản mới")
-async def register(
-    user_data: UserSchema, 
-    db: Session = Depends(get_db)
-):
+@router.post("/auth/register", summary="Tạo tài khoản mới")
+async def register(user_data: UserSchema, db: Session = Depends(get_db)):
     existing = db.query(User).filter(func.lower(User.username) == func.lower(user_data.username)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Tên tài khoản này đã tồn tại!")
@@ -93,37 +82,11 @@ async def register(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-# ✅ LẤY TẤT CẢ TÀI KHOẢN (GV & SV) KÈM MẬT KHẨU
-@router.get("/users/all", summary="Xem toàn bộ tài khoản hệ thống")
+@router.get("/users/all")
 async def get_all_users(db: Session = Depends(get_db)):
-    # Trả về tất cả mọi người để giáo viên quản lý
-    users = db.query(User).order_by(User.role.desc(), User.username.asc()).all()
-    return users 
+    return db.query(User).order_by(User.role.desc(), User.username.asc()).all() 
 
-# ✅ CẬP NHẬT THÔNG TIN TÀI KHOẢN
-@router.put("/users/{user_id}", summary="Sửa thông tin thành viên")
-async def update_user(
-    user_id: int,
-    user_data: UserSchema,
-    db: Session = Depends(get_db)
-):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
-    
-    user.full_name = user_data.full_name
-    user.username = user_data.username
-    user.password = user_data.password
-    user.role = user_data.role
-    try:
-        db.commit()
-        return {"status": "success", "message": "Cập nhật thành công"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-# ✅ XÓA VĨNH VIỄN TÀI KHOẢN
-@router.delete("/users/{user_id}", summary="Xóa tài khoản")
+@router.delete("/users/{user_id}")
 async def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if user:
@@ -137,20 +100,17 @@ async def delete_user(user_id: int, db: Session = Depends(get_db)):
     raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
 
 # ==========================================
-# KHU VỰC 1: API DÀNH CHO GIÁO VIÊN (TÀI LIỆU)
+# KHU VỰC 1: API DÀNH CHO GIÁO VIÊN (QUẢN LÝ)
 # ==========================================
 
-@router.get("/users/students")
+@router.get("/users/students", summary="Lấy danh sách học sinh kèm trình độ thực tế")
 async def get_all_students(db: Session = Depends(get_db)):
-    students = db.query(User).filter(
-        func.lower(func.trim(User.role)) == "student"
-    ).all()  
-    
+    students = db.query(User).filter(func.lower(func.trim(User.role)) == "student").all()  
     rev_level_map = {1: "Beginner", 2: "Intermediate", 3: "Advanced"}
     result = []
+    
     for s in students:
         history = db.query(LessonProgress).filter(LessonProgress.username == s.username).all()
-        
         if history:
             total_points = sum([3 if r.final_score >= 80 else 2 if r.final_score >= 50 else 1 for r in history])
             avg_val = round(total_points / len(history))
@@ -162,7 +122,7 @@ async def get_all_students(db: Session = Depends(get_db)):
             "id": s.id,
             "full_name": s.full_name,
             "username": s.username,
-            "password" : s.password,
+            "password": s.password, 
             "current_level": display_level, 
             "created_at": s.created_at.strftime("%d/%m/%Y") if s.created_at else "N/A"
         })
@@ -176,7 +136,7 @@ async def upload_document(
     db: Session = Depends(get_db)
 ):
     if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file PDF nhé bro!")
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file PDF!")
 
     file_path = f"{UPLOAD_DIR}/{file.filename}"
     with open(file_path, "wb") as buffer:
@@ -200,8 +160,7 @@ async def delete_document(doc_id: int, db: Session = Depends(get_db)):
         db.delete(doc)
         db.commit()
         return {"message": "Đã xóa tài liệu"}
-    raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu")
-
+    raise HTTPException(status_code=404, detail="Không tìm thấy")
 
 # ==========================================
 # KHU VỰC 2: API DÀNH CHO HỌC SINH (AI MAS)
@@ -240,7 +199,6 @@ async def generate_student_lesson(doc_id: int, level: str = Form(...), db: Sessi
         }
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
-
 # ==========================================
 # KHU VỰC 3: QUẢN LÝ TIẾN ĐỘ & LỊCH SỬ
 # ==========================================
@@ -253,20 +211,34 @@ async def save_student_progress(
     total_questions: int = Form(...), 
     db: Session = Depends(get_db)
 ):
+    clean_username = username.strip()
+    user = db.query(User).filter(func.lower(User.username) == func.lower(clean_username)).first()
+    if not user: raise HTTPException(status_code=404, detail="Học sinh không tồn tại")
+
     level = profiling_agent.evaluate_diagnostic_score(score, total_questions)
-    progress = db.query(StudentProgress).filter(StudentProgress.username == username, StudentProgress.course_name == course_name).first()
+    user.current_level = level
+    
+    progress = db.query(StudentProgress).filter(
+        func.lower(StudentProgress.username) == func.lower(clean_username), 
+        StudentProgress.course_name == course_name
+    ).first()
+    
     if progress: 
         progress.level = level
     else:
-        db.add(StudentProgress(username=username, course_name=course_name, level=level))
+        db.add(StudentProgress(username=user.username, course_name=course_name, level=level))
     
-    user = db.query(User).filter(User.username == username).first()
-    if user: 
-        user.current_level = level
-        
     accuracy = round((score / total_questions) * 100, 1) if total_questions > 0 else 0
-    db.add(LessonProgress(username=username, doc_id=0, score=score, total_questions=total_questions, is_mastered=True, final_score=accuracy))
+    db.add(LessonProgress(username=user.username, doc_id=0, score=score, total_questions=total_questions, is_mastered=True, final_score=accuracy))
     
+    db.add(LearningHistory(
+        user_id=user.id,
+        topic=f"Diagnostic Test: {course_name}",
+        test_score=float(score),
+        final_evaluation=float(accuracy),
+        feedback=f"Xác định trình độ: {level}"
+    ))
+
     try:
         db.commit()
         return {"status": "success", "level": level}
@@ -274,17 +246,9 @@ async def save_student_progress(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/progress/{username}")
-async def get_student_progress(username: str, db: Session = Depends(get_db)):
-    progress_list = db.query(StudentProgress).filter(StudentProgress.username == username).all()
-    return {p.course_name: p.level for p in progress_list}
-
-# ✅ FIX LỖI NHÂN BẢN DỮ LIỆU (JOIN)
 @router.get("/history/{username}")
 async def get_learning_history(username: str, db: Session = Depends(get_db)):
     search_username = username.strip().lower()
-    
-   
     query = db.query(
         LessonProgress, 
         Document.course_name, 
@@ -294,25 +258,20 @@ async def get_learning_history(username: str, db: Session = Depends(get_db)):
      .order_by(LessonProgress.created_at.asc())
 
     records = query.all()
-    
     result = []
     for lp, c_name, l_name in records:
         actual_course = c_name
         if lp.doc_id == 0:
-            prog = db.query(StudentProgress).filter(StudentProgress.username == lp.username).first()
-            actual_course = prog.course_name if prog else "Kiểm tra năng lực"
+            prog = db.query(StudentProgress).filter(func.lower(StudentProgress.username) == search_username).first()
+            actual_course = prog.course_name if prog else "Năng lực chung"
 
-        acc_percent = round((lp.score / lp.total_questions) * 100, 1) if lp.total_questions > 0 else 0
-        
         result.append({
             "course_name": actual_course or "Môn học chung",
             "lesson_name": l_name if lp.doc_id != 0 else "Diagnostic Test",
-            "accuracy": acc_percent,
-            "final_score": lp.final_score or 0,
-            "doc_id": lp.doc_id,
+            "accuracy": round((lp.score / lp.total_questions) * 100, 1) if lp.total_questions > 0 else 0,
+            "final_score": lp.final_score,
             "date": lp.created_at.strftime("%d/%m") if lp.created_at else "N/A"
         })
-    
     return result
 
 @router.post("/submit-quiz")
@@ -326,38 +285,36 @@ async def submit_quiz(
     db: Session = Depends(get_db)
 ):
     try:
+        clean_user = username.strip()
+        user = db.query(User).filter(func.lower(User.username) == func.lower(clean_user)).first()
         doc = db.query(Document).filter(Document.id == doc_id).first()
-        if not doc: raise HTTPException(status_code=404, detail="Bài học không tồn tại")
+        if not doc or not user: raise HTTPException(status_code=404, detail="Dữ liệu lỗi")
         
         eval_result = evaluation_agent.evaluate_student(score/total_questions, time_spent, retry_count)
         final_score = eval_result["final_score"]
         
-        db.add(LessonProgress(
-            username=username, 
-            doc_id=doc_id, 
-            score=score, 
-            total_questions=total_questions, 
-            is_mastered=eval_result["is_mastered"], 
-            final_score=final_score
-        ))
+        db.add(LessonProgress(username=user.username, doc_id=doc_id, score=score, total_questions=total_questions, is_mastered=eval_result["is_mastered"], final_score=final_score))
+        db.add(LearningHistory(user_id=user.id, topic=doc.lesson_name, test_score=float(score), final_evaluation=float(final_score), feedback=eval_result["ai_message"]))
+        
         db.flush() 
+
+        all_h = db.query(LessonProgress).join(Document, LessonProgress.doc_id == Document.id)\
+            .filter(func.lower(LessonProgress.username) == func.lower(clean_user), Document.course_name == doc.course_name).all()
         
-        # Cập nhật Level trung bình
-        all_history = db.query(LessonProgress).join(Document, LessonProgress.doc_id == Document.id)\
-            .filter(LessonProgress.username == username, Document.course_name == doc.course_name).all()
+        avg_s = sum([h.final_score for h in all_h]) / len(all_h) if all_h else 0
+        new_l = "Advanced" if avg_s >= 80 else "Intermediate" if avg_s >= 50 else "Beginner"
         
-        avg_score = sum([h.final_score for h in all_history]) / len(all_history) if all_history else 0
-        new_level = "Advanced" if avg_score >= 80 else "Intermediate" if avg_score >= 50 else "Beginner"
-        
-        progress = db.query(StudentProgress).filter(StudentProgress.username == username, StudentProgress.course_name == doc.course_name).first()
-        if progress: progress.level = new_level
-        
-        user = db.query(User).filter(User.username == username).first()
-        if user and user.current_level != new_level: 
-            user.current_level = new_level
+        prog_entry = db.query(StudentProgress).filter(func.lower(StudentProgress.username) == func.lower(clean_user), StudentProgress.course_name == doc.course_name).first()
+        if prog_entry: prog_entry.level = new_l
+        user.current_level = new_l
             
         db.commit()
-        return {"status": "success", "data": {"score": score, "total": total_questions, "message": eval_result["ai_message"]}}
+        return {"status": "success", "data": {"message": eval_result["ai_message"], "new_level": new_l}}
     except Exception as e:
         db.rollback() 
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/progress/{username}")
+async def get_student_progress(username: str, db: Session = Depends(get_db)):
+    progress_list = db.query(StudentProgress).filter(func.lower(StudentProgress.username) == func.lower(username.strip())).all()
+    return {p.course_name: p.level for p in progress_list}
