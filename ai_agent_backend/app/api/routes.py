@@ -284,7 +284,7 @@ async def get_student_progress(username: str, db: Session = Depends(get_db)):
 async def get_learning_history(username: str, db: Session = Depends(get_db)):
     search_username = username.strip().lower()
     
-    # Chỉ JOIN với Document, tránh JOIN StudentProgress để không bị lặp ID
+   
     query = db.query(
         LessonProgress, 
         Document.course_name, 
